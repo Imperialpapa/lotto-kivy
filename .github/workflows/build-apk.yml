@@ -19,7 +19,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.11'
+        python-version: '3.10'
 
     - name: Install system dependencies
       run: |
@@ -32,7 +32,11 @@ jobs:
           build-essential ccache \
           libxml2-dev libxslt1-dev \
           libjpeg-dev libpng-dev \
-          m4
+          m4 gettext
+        
+        # libtool 매크로 파일 강제 재생성
+        sudo autoreconf --install --force || true
+        sudo ldconfig
 
     - name: Cache buildozer global directory
       uses: actions/cache@v4
@@ -87,6 +91,8 @@ jobs:
       run: |
         export ANDROID_SDK_ROOT=~/.buildozer/android/platform/android-sdk
         export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools
+        export ACLOCAL_PATH="/usr/share/aclocal"
+        export AUTOMAKE_OPTIONS="foreign"
         buildozer android debug
       env:
         ANDROIDAPI: "28"
