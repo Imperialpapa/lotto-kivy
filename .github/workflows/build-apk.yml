@@ -82,6 +82,8 @@ jobs:
         
         # tools/bin 디렉토리 생성 및 sdkmanager 링크 생성
         mkdir -p android-sdk/tools/bin
+        # 기존 심볼릭 링크가 있으면 제거하고 새로 생성
+        rm -f android-sdk/tools/bin/sdkmanager
         ln -s ../../cmdline-tools/latest/bin/sdkmanager android-sdk/tools/bin/sdkmanager
         
         # 환경 변수 설정
