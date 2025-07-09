@@ -34,7 +34,7 @@ jobs:
           libjpeg-dev libpng-dev
 
     - name: Cache buildozer global directory
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.buildozer
         key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
@@ -42,7 +42,7 @@ jobs:
           ${{ runner.os }}-buildozer-
 
     - name: Cache pip dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
@@ -68,7 +68,7 @@ jobs:
         ANDROIDMINAPI: "21"
 
     - name: Upload APK
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: success()
       with:
         name: lotto-kivy-debug.apk
@@ -77,12 +77,12 @@ jobs:
 
     - name: Create Release
       if: github.ref == 'refs/heads/master' && success()
-      uses: actions/create-release@v1
+      uses: softprops/action-gh-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: v${{ github.run_number }}
-        release_name: 로또 생성기 v${{ github.run_number }}
+        name: 로또 생성기 v${{ github.run_number }}
         body: |
           🎰 6/45 로또 생성기 Android APK
           
@@ -101,14 +101,5 @@ jobs:
           빌드 날짜: ${{ github.event.head_commit.timestamp }}
         draft: false
         prerelease: false
-
-    - name: Upload Release Asset
-      if: github.ref == 'refs/heads/master' && success()
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: bin/lottogenerator-0.1-arm64-v8a_armeabi-v7a-debug.apk
-        asset_name: lotto-kivy-v${{ github.run_number }}.apk
-        asset_content_type: application/vnd.android.package-archive
+        files: |
+          bin/*.apk
