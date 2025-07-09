@@ -117,24 +117,19 @@ jobs:
         
         # 빌드 시도
         echo "Starting buildozer build..."
-        buildozer android debug --verbose 2>&1 | tee build.log || {
-          echo "Build failed. Checking log for specific errors..."
-          
-          # 일반적인 오류 패턴 검사
-          if grep -q "No module named" build.log; then
-            echo "Missing Python module detected, installing common dependencies..."
-            pip install --upgrade pip setuptools wheel
-            pip install pyjnius plyer
-          fi
-          
-          if grep -q "autoreconf" build.log; then
-            echo "Autoreconf error detected, trying workaround..."
-            export SKIP_AUTORECONF=1
-          fi
-          
-          echo "Retrying build..."
-          buildozer android debug --verbose
-        }
+        echo "=== Buildozer 환경 확인 ==="
+        buildozer --version || echo "Buildozer version check failed"
+        
+        echo "=== 빌드 시작 ==="
+        set -e  # 오류 발생 시 즉시 중단
+        buildozer android debug --verbose 2>&1 | tee build.log
+        
+        echo "=== 빌드 성공 확인 ==="
+        if [ -f "build.log" ]; then
+          echo "Build log size: $(wc -l < build.log) lines"
+          echo "Last 20 lines of build log:"
+          tail -20 build.log
+        fi
       env:
         ANDROIDAPI: "28"
         ANDROIDMINAPI: "21"
