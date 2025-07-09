@@ -11,6 +11,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: write
+      actions: read
 
     steps:
     - name: Checkout code
@@ -134,19 +137,25 @@ jobs:
         ANDROIDAPI: "28"
         ANDROIDMINAPI: "21"
 
+    - name: List APK files
+      run: |
+        echo "Looking for APK files..."
+        find . -name "*.apk" -type f
+        ls -la bin/ || echo "bin directory not found"
+        
     - name: Upload APK
       uses: actions/upload-artifact@v4
       if: success()
       with:
         name: lotto-kivy-debug.apk
-        path: bin/*.apk
+        path: |
+          bin/*.apk
+          **/*.apk
         retention-days: 30
 
     - name: Create Release
       if: github.ref == 'refs/heads/master' && success()
       uses: softprops/action-gh-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: v${{ github.run_number }}
         name: 로또 생성기 v${{ github.run_number }}
@@ -170,3 +179,5 @@ jobs:
         prerelease: false
         files: |
           bin/*.apk
+          **/*.apk
+        token: ${{ secrets.GITHUB_TOKEN }}
