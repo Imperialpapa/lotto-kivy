@@ -27,10 +27,10 @@ jobs:
         sudo apt install -y \
           git zip unzip openjdk-17-jdk python3-pip \
           autoconf libtool pkg-config zlib1g-dev \
-          libncurses5-dev libncursesw5-dev libtinfo5 \
+          libncurses5-dev libncursesw5-dev libtinfo6 \
           cmake libffi-dev libssl-dev \
           build-essential ccache \
-          libssl-dev libffi-dev libxml2-dev libxslt1-dev \
+          libxml2-dev libxslt1-dev \
           libjpeg-dev libpng-dev
 
     - name: Cache buildozer global directory
