@@ -58,8 +58,9 @@ jobs:
 
     - name: Install Python dependencies
       run: |
-        python -m pip install --upgrade pip
+        python -m pip install --upgrade pip setuptools wheel
         pip install buildozer cython appdirs colorama jinja2 sh
+        pip install pyjnius plyer requests beautifulsoup4
         # buildozer 설정 파일에 autotools 무시 설정 추가
         mkdir -p ~/.buildozer
         echo 'export IGNORE_AUTOTOOLS_ERRORS=1' >> ~/.buildozer/config
@@ -106,10 +107,27 @@ jobs:
         export IGNORE_AUTOTOOLS_ERRORS=1
         export AUTORECONF_FLAGS="--install --force"
         
-        # 더 안전한 빌드 시도
-        buildozer android debug --verbose || {
-          echo "First build failed, trying to clean and rebuild..."
-          buildozer android clean
+        # Python 경로 명시적 설정
+        export PYTHONPATH="/opt/hostedtoolcache/Python/3.10.18/x64/lib/python3.10/site-packages:$PYTHONPATH"
+        
+        # 빌드 시도
+        echo "Starting buildozer build..."
+        buildozer android debug --verbose 2>&1 | tee build.log || {
+          echo "Build failed. Checking log for specific errors..."
+          
+          # 일반적인 오류 패턴 검사
+          if grep -q "No module named" build.log; then
+            echo "Missing Python module detected, installing common dependencies..."
+            pip install --upgrade pip setuptools wheel
+            pip install pyjnius plyer
+          fi
+          
+          if grep -q "autoreconf" build.log; then
+            echo "Autoreconf error detected, trying workaround..."
+            export SKIP_AUTORECONF=1
+          fi
+          
+          echo "Retrying build..."
           buildozer android debug --verbose
         }
       env:
