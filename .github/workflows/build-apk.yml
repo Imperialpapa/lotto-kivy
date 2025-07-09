@@ -119,6 +119,10 @@ jobs:
         export LIBTOOLIZE_FLAGS="--force --install"
         export SKIP_AUTOTOOLS_CHECKS=1
         
+        # libffi autotools 오류 회피
+        export LIBFFI_DISABLE_AUTOCONF=1
+        export SKIP_LIBFFI_AUTOTOOLS=1
+        
         # Python 경로 명시적 설정
         export PYTHONPATH="/opt/hostedtoolcache/Python/3.10.18/x64/lib/python3.10/site-packages:$PYTHONPATH"
         
