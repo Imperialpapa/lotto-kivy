@@ -32,10 +32,12 @@ jobs:
           build-essential ccache \
           libxml2-dev libxslt1-dev \
           libjpeg-dev libpng-dev \
-          m4 gettext
+          m4 gettext autopoint
         
-        # libtool 매크로 파일 강제 재생성
-        sudo autoreconf --install --force || true
+        # libtool 매크로 파일 강제 재생성 및 symlink 생성
+        sudo mkdir -p /usr/share/aclocal
+        sudo libtoolize --force --install || true
+        sudo aclocal --force || true
         sudo ldconfig
 
     - name: Cache buildozer global directory
@@ -93,6 +95,10 @@ jobs:
         export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools
         export ACLOCAL_PATH="/usr/share/aclocal"
         export AUTOMAKE_OPTIONS="foreign"
+        export AUTOCONF_VERSION="2.71"
+        export LIBTOOL_VERSION="2.4.6"
+        # libtool 매크로 강제 설정
+        export M4PATH="/usr/share/aclocal:$M4PATH"
         buildozer android debug
       env:
         ANDROIDAPI: "28"
