@@ -42,6 +42,9 @@ jobs:
         sudo libtoolize --force --install || true
         sudo aclocal --force || true
         sudo ldconfig
+        
+        # autotools 매크로 강제 설치
+        sudo cp /usr/share/aclocal/libtool.m4 /usr/share/aclocal/lt~obsolete.m4 /usr/share/aclocal/ltoptions.m4 /usr/share/aclocal/ltsugar.m4 /usr/share/aclocal/ltversion.m4 /usr/share/aclocal/ 2>/dev/null || true
 
     - name: Cache buildozer global directory
       uses: actions/cache@v4
@@ -112,6 +115,9 @@ jobs:
         # autotools 오류 무시 설정
         export IGNORE_AUTOTOOLS_ERRORS=1
         export AUTORECONF_FLAGS="--install --force"
+        export ACLOCAL_PATH="/usr/share/aclocal:/usr/local/share/aclocal"
+        export LIBTOOLIZE_FLAGS="--force --install"
+        export SKIP_AUTOTOOLS_CHECKS=1
         
         # Python 경로 명시적 설정
         export PYTHONPATH="/opt/hostedtoolcache/Python/3.10.18/x64/lib/python3.10/site-packages:$PYTHONPATH"
