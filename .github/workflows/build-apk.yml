@@ -137,20 +137,70 @@ jobs:
         ANDROIDAPI: "28"
         ANDROIDMINAPI: "21"
 
-    - name: List APK files
+    - name: Find APK files
       run: |
-        echo "Looking for APK files..."
-        find . -name "*.apk" -type f
-        ls -la bin/ || echo "bin directory not found"
+        echo "=== 전체 시스템에서 APK 파일 검색 ==="
+        find . -name "*.apk" -type f -exec ls -lh {} \; 2>/dev/null || echo "No APK files found"
         
+        echo "=== buildozer 디렉토리 구조 확인 ==="
+        find .buildozer -type f -name "*.apk" 2>/dev/null || echo "No APK in .buildozer"
+        
+        echo "=== bin 디렉토리 확인 ==="
+        ls -la bin/ 2>/dev/null || echo "bin directory not found"
+        
+        echo "=== dist 디렉토리 확인 ==="
+        find . -path "*/dist*" -name "*.apk" -type f 2>/dev/null || echo "No APK in dist directories"
+        
+        echo "=== outputs 디렉토리 확인 ==="
+        find . -path "*outputs*" -name "*.apk" -type f 2>/dev/null || echo "No APK in outputs directories"
+        
+        echo "=== 일반적인 Android 빌드 경로 확인 ==="
+        find . -path "*build/outputs/apk*" -name "*.apk" -type f 2>/dev/null || echo "No APK in Android build outputs"
+        
+        echo "=== 현재 디렉토리 구조 확인 ==="
+        ls -la
+        
+        echo "=== buildozer 설정 확인 ==="
+        if [ -f "buildozer.spec" ]; then
+          echo "bin_dir setting:"
+          grep -E "^bin_dir|^#.*bin_dir" buildozer.spec || echo "No bin_dir setting found"
+        fi
+        
+    - name: Collect APK files
+      run: |
+        echo "=== APK 파일 수집 ==="
+        mkdir -p bin
+        
+        # 모든 APK 파일을 찾아서 bin 디렉토리로 복사
+        find . -name "*.apk" -type f -exec cp {} bin/ \; 2>/dev/null || echo "No APK files to copy"
+        
+        # 복사된 파일 확인
+        echo "=== bin 디렉토리 최종 확인 ==="
+        ls -la bin/
+        
+        # 파일이 없으면 buildozer 출력 디렉토리에서 직접 찾기
+        if [ ! -f bin/*.apk ]; then
+          echo "=== 대체 경로에서 APK 검색 ==="
+          # buildozer 일반적인 출력 경로들
+          for path in \
+            ".buildozer/android/platform/build-*/dists/*/build/outputs/apk/*/*.apk" \
+            ".buildozer/android/platform/build-*/build/outputs/apk/*/*.apk" \
+            ".buildozer/android/platform/build-*/bin/*.apk" \
+            ".buildozer/android/platform/python-for-android/dist/*/build/outputs/apk/*/*.apk"
+          do
+            find . -path "$path" -type f -exec cp {} bin/ \; 2>/dev/null || continue
+          done
+        fi
+        
+        echo "=== 최종 bin 디렉토리 내용 ==="
+        ls -la bin/ || echo "bin directory is empty"
+
     - name: Upload APK
       uses: actions/upload-artifact@v4
       if: success()
       with:
         name: lotto-kivy-debug.apk
-        path: |
-          bin/*.apk
-          **/*.apk
+        path: bin/*.apk
         retention-days: 30
 
     - name: Create Release
@@ -177,7 +227,5 @@ jobs:
           빌드 날짜: ${{ github.event.head_commit.timestamp }}
         draft: false
         prerelease: false
-        files: |
-          bin/*.apk
-          **/*.apk
+        files: bin/*.apk
         token: ${{ secrets.GITHUB_TOKEN }}
