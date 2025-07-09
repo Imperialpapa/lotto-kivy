@@ -174,39 +174,77 @@ jobs:
         mkdir -p bin
         
         # 모든 APK 파일을 찾아서 bin 디렉토리로 복사
-        find . -name "*.apk" -type f -exec cp {} bin/ \; 2>/dev/null || echo "No APK files to copy"
+        echo "전체 디렉토리에서 APK 파일 검색 중..."
+        find . -name "*.apk" -type f -print0 | while IFS= read -r -d '' apk; do
+          echo "Found APK: $apk"
+          cp "$apk" bin/
+        done
         
-        # 복사된 파일 확인
-        echo "=== bin 디렉토리 최종 확인 ==="
+        echo "=== bin 디렉토리 중간 확인 ==="
         ls -la bin/
         
-        # 파일이 없으면 buildozer 출력 디렉토리에서 직접 찾기
-        if [ ! -f bin/*.apk ]; then
-          echo "=== 대체 경로에서 APK 검색 ==="
-          # buildozer 일반적인 출력 경로들
-          for path in \
-            ".buildozer/android/platform/build-*/dists/*/build/outputs/apk/*/*.apk" \
-            ".buildozer/android/platform/build-*/build/outputs/apk/*/*.apk" \
-            ".buildozer/android/platform/build-*/bin/*.apk" \
-            ".buildozer/android/platform/python-for-android/dist/*/build/outputs/apk/*/*.apk"
-          do
-            find . -path "$path" -type f -exec cp {} bin/ \; 2>/dev/null || continue
+        # 파일이 없으면 더 적극적으로 검색
+        if [ ! -f bin/*.apk ] 2>/dev/null; then
+          echo "=== 더 적극적인 APK 검색 ==="
+          
+          # 모든 가능한 경로 확인
+          for dir in .buildozer .gradle build dist bin; do
+            if [ -d "$dir" ]; then
+              echo "Searching in $dir..."
+              find "$dir" -name "*.apk" -type f -exec sh -c 'echo "Found: $1"; cp "$1" bin/' _ {} \; 2>/dev/null || true
+            fi
+          done
+          
+          # 특정 패턴으로 검색
+          echo "=== 특정 패턴으로 검색 ==="
+          find . -name "*debug*.apk" -o -name "*release*.apk" -o -name "*lotto*.apk" | while read apk; do
+            if [ -f "$apk" ]; then
+              echo "Pattern match: $apk"
+              cp "$apk" bin/
+            fi
           done
         fi
         
         echo "=== 최종 bin 디렉토리 내용 ==="
-        ls -la bin/ || echo "bin directory is empty"
+        ls -la bin/
+        
+        # 여전히 없으면 buildozer 로그 확인
+        if [ ! -f bin/*.apk ] 2>/dev/null; then
+          echo "=== APK 파일을 찾을 수 없음. buildozer 로그에서 경로 확인 ==="
+          if [ -f "build.log" ]; then
+            echo "APK 관련 로그 검색:"
+            grep -i "apk\|\.apk\|build.*output" build.log | tail -20 || echo "No APK references in log"
+          fi
+          
+          echo "=== 전체 디렉토리 구조 (APK 관련만) ==="
+          find . -type f -name "*.apk" -o -name "*apk*" | head -50
+        fi
+        
+        # 최종 확인
+        apk_count=$(ls -1 bin/*.apk 2>/dev/null | wc -l)
+        echo "=== 수집된 APK 파일 수: $apk_count ==="
+
+    - name: Check APK files before upload
+      id: check_apk
+      run: |
+        if ls bin/*.apk 1> /dev/null 2>&1; then
+          echo "apk_exists=true" >> $GITHUB_OUTPUT
+          echo "APK files found for upload"
+        else
+          echo "apk_exists=false" >> $GITHUB_OUTPUT
+          echo "No APK files found for upload"
+        fi
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
-      if: success()
+      if: success() && steps.check_apk.outputs.apk_exists == 'true'
       with:
         name: lotto-kivy-debug.apk
         path: bin/*.apk
         retention-days: 30
 
     - name: Create Release
-      if: github.ref == 'refs/heads/master' && success()
+      if: github.ref == 'refs/heads/master' && success() && steps.check_apk.outputs.apk_exists == 'true'
       uses: softprops/action-gh-release@v1
       with:
         tag_name: v${{ github.run_number }}
