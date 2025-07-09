@@ -1,0 +1,114 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:  # 수동으로 빌드 실행 가능
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install system dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y \
+          git zip unzip openjdk-17-jdk python3-pip \
+          autoconf libtool pkg-config zlib1g-dev \
+          libncurses5-dev libncursesw5-dev libtinfo5 \
+          cmake libffi-dev libssl-dev \
+          build-essential ccache \
+          libssl-dev libffi-dev libxml2-dev libxslt1-dev \
+          libjpeg-dev libpng-dev
+
+    - name: Cache buildozer global directory
+      uses: actions/cache@v3
+      with:
+        path: ~/.buildozer
+        key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
+        restore-keys: |
+          ${{ runner.os }}-buildozer-
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install buildozer cython
+
+    - name: Accept Android licenses
+      run: |
+        mkdir -p ~/.buildozer/android/platform/android-sdk/licenses
+        echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+        echo "84831b9409646a918e30573bab4c9c91346d8abd" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
+
+    - name: Build APK
+      run: |
+        buildozer android debug
+      env:
+        ANDROIDAPI: "28"
+        ANDROIDMINAPI: "21"
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v3
+      if: success()
+      with:
+        name: lotto-kivy-debug.apk
+        path: bin/*.apk
+        retention-days: 30
+
+    - name: Create Release
+      if: github.ref == 'refs/heads/master' && success()
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ github.run_number }}
+        release_name: 로또 생성기 v${{ github.run_number }}
+        body: |
+          🎰 6/45 로또 생성기 Android APK
+          
+          ### 주요 기능
+          - 17가지 로또 번호 생성 알고리즘
+          - 과거 당첨번호 조회 및 분석
+          - 자동 데이터 업데이트
+          - 한글 폰트 지원
+          
+          ### 설치 방법
+          1. APK 파일 다운로드
+          2. 안드로이드 기기에서 "알 수 없는 소스" 허용
+          3. APK 파일 설치
+          
+          빌드 번호: ${{ github.run_number }}
+          빌드 날짜: ${{ github.event.head_commit.timestamp }}
+        draft: false
+        prerelease: false
+
+    - name: Upload Release Asset
+      if: github.ref == 'refs/heads/master' && success()
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: bin/lottogenerator-0.1-arm64-v8a_armeabi-v7a-debug.apk
+        asset_name: lotto-kivy-v${{ github.run_number }}.apk
+        asset_content_type: application/vnd.android.package-archive
